@@ -57,14 +57,13 @@ def extract_text_from_uploaded_files(files):
 
 
 def replace_placeholders_with_html(content):
-    """Replaces predefined placeholders with corresponding HTML elements."""
     for placeholder, html_code in HTML_ELEMENTS.items():
         content = content.replace(placeholder, html_code)
     return content
 
 
 def get_ai_generated_html(prompt):
-    openai_api_key = st.secrets["OPENAI_API_KEY"]  
+    openai_api_key = st.secrets.get("OPENAI_API_KEY")
     if not openai_api_key:
         st.error("Missing OpenAI API Key. Please add it to your Streamlit secrets.")
         return None
@@ -93,57 +92,70 @@ def get_ai_generated_html(prompt):
         return None
 
 
+def check_or_create_module(module_name, canvas_domain, course_id, headers):
+    url = f"https://{canvas_domain}/api/v1/courses/{course_id}/modules"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        modules = response.json()
+        for module in modules:
+            if module["name"].lower() == module_name.lower():
+                return module["id"]
+    
+    # Create module if not found
+    payload = {"module": {"name": module_name, "published": PUBLISHED}}
+    response = requests.post(url, headers=headers, json=payload)
+    if response.status_code in [200, 201]:
+        return response.json().get("id")
+    return None
+
+
+def create_or_update_page(page_title, page_body, canvas_domain, course_id, headers):
+    url = f"https://{canvas_domain}/api/v1/courses/{course_id}/pages/{page_title.replace(' ', '-').lower()}"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        payload = {"wiki_page": {"body": page_body, "published": PUBLISHED}}
+        requests.put(url, headers=headers, json=payload)
+    else:
+        url = f"https://{canvas_domain}/api/v1/courses/{course_id}/pages"
+        payload = {"wiki_page": {"title": page_title, "body": page_body, "published": PUBLISHED}}
+        requests.post(url, headers=headers, json=payload)
+
+
 def push_to_canvas(module_title, page_title, page_body, canvas_domain, course_id, access_token):
     headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
-    
-    module_id = check_if_module_exists(module_title, canvas_domain, course_id, headers)
+    module_id = check_or_create_module(module_title, canvas_domain, course_id, headers)
     if not module_id:
-        st.error("Module does not exist. Please create it manually first.")
+        st.error("Module creation failed.")
         return
-    
-    page_data = create_or_update_page(page_title, page_body, canvas_domain, course_id, headers)
-    if page_data:
-        st.success("Page successfully created or updated in Canvas!")
-    else:
-        st.error("Failed to create or update the page in Canvas.")
+    create_or_update_page(page_title, page_body, canvas_domain, course_id, headers)
+    st.success("Page successfully created or updated in Canvas!")
 
 
 def main():
     st.set_page_config(page_title="Construct HTML Generator", layout="centered", initial_sidebar_state="expanded")
-    
     st.title(APP_TITLE)
     st.markdown(APP_INTRO)
-    
-    st.header("Step 1: Provide Canvas Page Details")
     
     module_title = st.text_input("Enter the title of your module:")
     page_title = st.text_input("Enter the title of your page:")
     uploaded_files = st.file_uploader("Choose files", type=['docx', 'pdf'], accept_multiple_files=True)
     
     uploaded_text = extract_text_from_uploaded_files(uploaded_files) if uploaded_files else ""
-    
     if uploaded_text:
-        st.markdown("**Extracted Content:**")
         st.text_area("Extracted Text", uploaded_text, height=300)
     
-    st.header("Step 2: Generate HTML")
     if st.button("Generate HTML"):
-        if not module_title or not page_title or not uploaded_text:
-            st.error("Please provide all inputs (module title, page title, and upload at least one file).")
-        else:
-            preprocessed_text = replace_placeholders_with_html(uploaded_text)
-            prompt = f"Module: {module_title}\nPage Title: {page_title}\nContent: {preprocessed_text}"
-            ai_generated_html = get_ai_generated_html(prompt)
-
+        if module_title and page_title and uploaded_text:
+            ai_generated_html = get_ai_generated_html(replace_placeholders_with_html(uploaded_text))
             if ai_generated_html:
-                st.markdown("### AI-Generated HTML Output:")
                 st.text_area("AI Response:", ai_generated_html, height=300)
                 st.session_state.ai_generated_html = ai_generated_html
             else:
                 st.error("AI failed to generate HTML content.")
+        else:
+            st.error("Please provide all inputs.")
     
-    if "ai_generated_html" in st.session_state and st.session_state.ai_generated_html:
-        st.header("Step 3: Push to Canvas")
+    if "ai_generated_html" in st.session_state:
         if st.button("Push to Canvas"):
             push_to_canvas(module_title, page_title, st.session_state.ai_generated_html, st.secrets["CANVAS_DOMAIN"], st.secrets["CANVAS_ID"], st.secrets["CANVAS_ACCESS_TOKEN"])
 
