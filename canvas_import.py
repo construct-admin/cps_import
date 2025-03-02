@@ -19,8 +19,8 @@ SYSTEM_PROMPT = "Convert raw content into properly formatted HTML excluding any 
 HTML_ELEMENTS = {
     "[begin content block]": '<div class="dp-content-block dp-padding-direction-tblr dp-margin-direction-tblr">',
     "[end content block]": '</div>',
-    "[begin heading]": '<h2 class="dp-heading dp-padding-direction-tblr dp-margin-direction-tblr">',
-    "[end heading]": '</h2>',
+    "[begin heading]": '<h2 class="dp-heading dp-padding-direction-tblr dp-margin-direction-tblr" style="border-top-color: #000000; padding-top: 25px; padding-bottom: 25px; margin-left: 0px;"><span class="dp-header-pre dp-margin-direction-tblr dp-padding-direction-tblr" style="margin-right: 50px; padding: 45px 43px; margin-top: -41px;">',
+    "[end heading]": '</span></h2>',
     "[begin subheading]": '<h3 class="dp-padding-direction-tblr dp-margin-direction-tblr">',
     "[end subheading]": '</h3>',
     "[begin paragraph]": '<p>',
