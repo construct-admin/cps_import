@@ -11,9 +11,9 @@ PUBLISHED = True
 APP_URL = "https://cps-import-bot.streamlit.app/"
 
 APP_TITLE = "Construct HTML Generator"
-APP_INTRO = "This micro-app allows you to convert text content into HTML format with tag processing."
+APP_INTRO = "This micro-app allows you to convert text content into properly formatted HTML with tag replacements."
 
-SYSTEM_PROMPT = "Convert raw content into properly formatted HTML excluding any DOCTYPE or extraneous header lines. Additionally, replace specific placeholders like '[begin content block]' with corresponding HTML elements."
+SYSTEM_PROMPT = "Convert raw content into properly formatted HTML excluding any DOCTYPE or extraneous header lines. Ensure that any placeholders like '[begin content block]' are correctly converted into corresponding HTML elements."
 
 # 🔹 Define the tag-to-HTML mapping
 HTML_ELEMENTS = {
@@ -85,7 +85,7 @@ def get_ai_generated_html(prompt):
     
     if response.status_code == 200:
         ai_response = response.json()["choices"][0]["message"]["content"].strip("`")
-        return replace_placeholders_with_html(ai_response)
+        return replace_placeholders_with_html(ai_response)  # 🔹 Ensure AI response is formatted correctly
     else:
         st.error(f"OpenAI API Error: {response.status_code} - {response.text}")
         return None
@@ -122,7 +122,7 @@ def main():
     uploaded_text = extract_text_from_uploaded_files(uploaded_files) if uploaded_files else ""
 
     if uploaded_text:
-        uploaded_text = replace_placeholders_with_html(uploaded_text)  # 🔹 Convert tags to HTML
+        uploaded_text = replace_placeholders_with_html(uploaded_text)  # 🔹 Convert extracted text to HTML
         st.markdown("**Extracted Content:**")
         st.text_area("Extracted Text", uploaded_text, height=300)
 
@@ -135,6 +135,7 @@ def main():
             ai_generated_html = get_ai_generated_html(prompt)
 
             if ai_generated_html:
+                ai_generated_html = replace_placeholders_with_html(ai_generated_html)  # 🔹 Ensure AI output is also formatted
                 st.markdown("### AI-Generated HTML Output:")
                 st.text_area("AI Response:", ai_generated_html, height=300)
                 st.session_state.ai_generated_html = ai_generated_html
