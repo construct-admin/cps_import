@@ -10,7 +10,7 @@ except ImportError:
 PUBLISHED = True
 APP_URL = "https://cps-import-bot.streamlit.app/"
 
-APP_TITLE = "CPS Import Bot"
+APP_TITLE = "Construct HTML Generator"
 APP_INTRO = "This micro-app allows you to convert text content into HTML format with tag processing."
 
 SYSTEM_PROMPT = "Convert raw content into properly formatted HTML excluding any DOCTYPE or extraneous header lines. Additionally, replace specific placeholders like '[begin content block]' with corresponding HTML elements."
@@ -106,8 +106,7 @@ def check_or_create_module(module_name, canvas_domain, course_id, headers):
             if module["name"].lower() == module_name.lower():
                 return module["id"]
     
-    # Create module if not found
-    payload = {"module": {"name": module_name, "published": PUBLISHED}}
+    payload = {"name": module_name, "published": PUBLISHED}
     response = requests.post(url, headers=headers, json=payload)
     if response.status_code in [200, 201]:
         return response.json().get("id")
