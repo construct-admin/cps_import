@@ -8,9 +8,9 @@ except ImportError:
     openai = None
 
 PUBLISHED = True
-APP_URL = "https://alt-text-bot.streamlit.app/"
+APP_URL = "https://cps-import-bot.streamlit.app/"
 
-APP_TITLE = "Construct HTML Generator"
+APP_TITLE = "CPS Import Bot"
 APP_INTRO = "This micro-app allows you to convert text content into HTML format with tag processing."
 
 SYSTEM_PROMPT = "Convert raw content into properly formatted HTML excluding any DOCTYPE or extraneous header lines. Additionally, replace specific placeholders like '[begin content block]' with corresponding HTML elements."
@@ -92,8 +92,13 @@ def get_ai_generated_html(prompt):
         return None
 
 
+def construct_canvas_url(canvas_domain, endpoint):
+    canvas_domain = canvas_domain.replace("https://", "").rstrip("/")
+    return f"https://{canvas_domain}/api/v1/{endpoint}"
+
+
 def check_or_create_module(module_name, canvas_domain, course_id, headers):
-    url = f"https://{canvas_domain}/api/v1/courses/{course_id}/modules"
+    url = construct_canvas_url(canvas_domain, f"courses/{course_id}/modules")
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         modules = response.json()
@@ -110,13 +115,13 @@ def check_or_create_module(module_name, canvas_domain, course_id, headers):
 
 
 def create_or_update_page(page_title, page_body, canvas_domain, course_id, headers):
-    url = f"https://{canvas_domain}/api/v1/courses/{course_id}/pages/{page_title.replace(' ', '-').lower()}"
+    url = construct_canvas_url(canvas_domain, f"courses/{course_id}/pages/{page_title.replace(' ', '-').lower()}")
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         payload = {"wiki_page": {"body": page_body, "published": PUBLISHED}}
         requests.put(url, headers=headers, json=payload)
     else:
-        url = f"https://{canvas_domain}/api/v1/courses/{course_id}/pages"
+        url = construct_canvas_url(canvas_domain, f"courses/{course_id}/pages")
         payload = {"wiki_page": {"title": page_title, "body": page_body, "published": PUBLISHED}}
         requests.post(url, headers=headers, json=payload)
 
