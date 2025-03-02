@@ -8,10 +8,10 @@ except ImportError:
     openai = None
 
 PUBLISHED = True
-APP_URL = "https://cps-import-bot.streamlit.app/"
+APP_URL = "https://alt-text-bot.streamlit.app/"
 
-APP_TITLE = "CPS Canvas Import"
-APP_INTRO = "This micro-app allows you import content to the Canvas LMS"
+APP_TITLE = "Construct HTML Generator"
+APP_INTRO = "This micro-app allows you to convert text content into HTML format with tag processing."
 
 SYSTEM_PROMPT = "Convert raw content into properly formatted HTML excluding any DOCTYPE or extraneous header lines. Additionally, replace specific placeholders like '[begin content block]' with corresponding HTML elements."
 
@@ -93,33 +93,19 @@ def get_ai_generated_html(prompt):
         return None
 
 
-def check_if_module_exists(module_name, canvas_domain, course_id, headers):
-    url = f"https://{canvas_domain}/api/v1/courses/{course_id}/modules"
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        modules = response.json()
-        for module in modules:
-            if module["name"].lower() == module_name.lower():
-                return module["id"]
-    return None
-
-
-def check_if_page_exists(page_title, canvas_domain, course_id, headers):
-    url = f"https://{canvas_domain}/api/v1/courses/{course_id}/pages/{page_title.replace(' ', '-').lower()}"
-    response = requests.get(url, headers=headers)
-    return response.status_code == 200
-
-
-def create_or_update_page(page_title, page_body, canvas_domain, course_id, headers):
-    if check_if_page_exists(page_title, canvas_domain, course_id, headers):
-        url = f"https://{canvas_domain}/api/v1/courses/{course_id}/pages/{page_title.replace(' ', '-').lower()}"
-        payload = {"wiki_page": {"body": page_body, "published": PUBLISHED}}
-        response = requests.put(url, headers=headers, json=payload)
+def push_to_canvas(module_title, page_title, page_body, canvas_domain, course_id, access_token):
+    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+    
+    module_id = check_if_module_exists(module_title, canvas_domain, course_id, headers)
+    if not module_id:
+        st.error("Module does not exist. Please create it manually first.")
+        return
+    
+    page_data = create_or_update_page(page_title, page_body, canvas_domain, course_id, headers)
+    if page_data:
+        st.success("Page successfully created or updated in Canvas!")
     else:
-        url = f"https://{canvas_domain}/api/v1/courses/{course_id}/pages"
-        payload = {"wiki_page": {"title": page_title, "body": page_body, "published": PUBLISHED}}
-        response = requests.post(url, headers=headers, json=payload)
-    return response.json()
+        st.error("Failed to create or update the page in Canvas.")
 
 
 def main():
@@ -155,6 +141,11 @@ def main():
                 st.session_state.ai_generated_html = ai_generated_html
             else:
                 st.error("AI failed to generate HTML content.")
+    
+    if "ai_generated_html" in st.session_state and st.session_state.ai_generated_html:
+        st.header("Step 3: Push to Canvas")
+        if st.button("Push to Canvas"):
+            push_to_canvas(module_title, page_title, st.session_state.ai_generated_html, st.secrets["CANVAS_DOMAIN"], st.secrets["CANVAS_ID"], st.secrets["CANVAS_ACCESS_TOKEN"])
 
 if __name__ == "__main__":
     main()
